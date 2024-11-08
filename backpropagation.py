@@ -62,9 +62,12 @@ class Value:
         out._backward = _backward
         return out
     
-    # Sample activations as placeholders
     def exp(self):
-        return None
+        out = Value(math.exp(self.data), (self,), 'exp')
+        def _backward():
+            self.grad = out.data * out.grad  # using out.data instead of recalculating exp(self.data)
+        out._backward = _backward
+        return out
 
     def tanh(self):
         return None
