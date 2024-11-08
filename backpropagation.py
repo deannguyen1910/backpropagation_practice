@@ -1,13 +1,13 @@
 import numpy
+import math
 from micrograd import draw_dot
 from IPython.display import display
 learning_rate = 0.01
 
-
 class Value:
     def __init__(self, data, _children=(), op='', label=''):
         self.data = data
-        self._backward = lambda:None
+        self._backward = lambda: None
         self._prev = set(_children)
         self.grad = 0.0
         self._op = op
@@ -21,58 +21,91 @@ class Value:
         def _backward():
             self.grad = 1.0 * out.grad
             other.grad = 1.0 * out.grad
-
         out._backward = _backward
         return out
 
     def __sub__(self, other):    
-        out = Value(self.data - other.data, (self, other), '+')
+        out = Value(self.data - other.data, (self, other), '-')
         def _backward():
             self.grad = 1.0 * out.grad
             other.grad = -1.0 * out.grad
-        
         out._backward = _backward
         return out 
     
     def __mul__(self, other):
-        out = Value(self.data * other.data, (self, other), '+')
+        out = Value(self.data * other.data, (self, other), '*')
         def _backward():
             self.grad = other.data * out.grad 
             other.grad = self.data * out.grad
-
         out._backward = _backward
         return out
 
     def __truediv__(self, other):
-        out = Value(self.data / other.data, (self, other), '+')
+        out = Value(self.data / other.data, (self, other), '/')
         def _backward():
             self.grad = 1.0 / other.data * out.grad
-            other.grad = self.data * (-1.0) / other.data**2 * out.grad
+            other.grad = -self.data / (other.data ** 2) * out.grad
+        out._backward = _backward
+        return out
 
+    def square(self):
+        out = Value(self.data ** 2, (self,), '**2')
+        def _backward():
+            self.grad = 2 * self.data * out.grad
+        out._backward = _backward
+        return out
+
+    def log(self):
+        out = Value(math.log(self.data), (self,), 'log')
+        def _backward():
+            self.grad = (1.0 / self.data) * out.grad
         out._backward = _backward
         return out
     
-    # activations
-    # tanh function
-    def tanh():
+    # Sample activations as placeholders
+    def exp(self):
+        return None
+
+    def tanh(self):
+        return None
+
+    def reLU(self):
+        return None
+
+    def softmax(self):
         return None
 
 
-    # softmax function
-    def softmax():
-        return None
 
 
-a = Value(2.0, label = 'a')
-b = Value(-3.0, label = 'b')
-c = Value(10.0, label ='c')
-e = a * b; e.label = 'e'
-d = e + c; d.label = 'd'
-f = Value (-2.0, label = 'f')
-L = d * f; L.label = 'L'
+# Constructing a computational graph
+x = Value(2, label='x')
+y = Value(1, label='y')
+z = Value(1, label='z')
 
-L.grad = 1.0
-L._backward()
-d._backward()
-e._backward()
-draw_dot(L).render(view=True)
+xAddy = x + y; xAddy.label = 'xAddy'
+xAddy2 = xAddy.square(); xAddy2.label = 'xAddy2'
+xAddy2Addz = xAddy2 + z; xAddy2Addz.label = 'xAddy2Addz'
+logxAddy2Addz = xAddy2Addz.log(); logxAddy2Addz.label = 'logxAddy2Addz'
+
+# Perform backward pass
+logxAddy2Addz.grad = 1.0
+# last._backward()
+# xAddy2Addz._backward()
+# xAddy2._backward()
+# xAddy._backward()
+
+
+topo = []
+visited = set()
+def build_topo(v):
+    if v not in visited:
+        visited.add(v)
+        for child in v._prev:
+            build_topo(child)
+        topo.append(v)
+build_topo(logxAddy2Addz)
+
+for node in reversed(topo):
+    node._backward()
+draw_dot(logxAddy2Addz).render(view=True)
